@@ -5,6 +5,18 @@ import { supabase } from '@/lib/supabase';
 import { Client } from '@/types/client';
 import { Loader2, Plus, UserCheck } from 'lucide-react';
 
+interface Client {
+  id?: string;
+  created_at?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  plan: string;
+  status: 'Ativo' | 'Suspenso' | 'Cancelado';
+  ip_address?: string;
+  address?: string;
+}
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
