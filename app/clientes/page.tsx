@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Client } from '@/types/client';
 import { Loader2, Plus, UserCheck } from 'lucide-react';
 
 interface Client {
@@ -64,7 +63,6 @@ export default function ClientsPage() {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold mb-6 text-slate-100">Gestão de Clientes (ISP)</h1>
 
-        {/* Formulário organizado em grelha */}
         <form onSubmit={handleAddClient} className="bg-slate-900 p-6 rounded-2xl border border-slate-800 grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 shadow-xl">
           <input 
             type="text" 
@@ -95,7 +93,6 @@ export default function ClientsPage() {
           </button>
         </form>
 
-        {/* Tabela de Clientes */}
         {loading ? (
           <div className="flex justify-center p-12"><Loader2 className="animate-spin text-blue-500" size={32} /></div>
         ) : (
