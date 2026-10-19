@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import { 
   LayoutDashboard, 
   Users, 
@@ -19,7 +21,9 @@ import {
   TrendingUp,
   Search,
   Menu,
-  X
+  X,
+  Cpu,
+  LogOut
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -35,6 +39,13 @@ const trafficData = [
 
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  };
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
@@ -54,9 +65,14 @@ export default function Dashboard() {
         transition-all duration-300 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0
       `}>
         <div className="p-4 flex items-center justify-between border-b border-slate-800">
-          <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent truncate">
-            Rede Digital
-          </span>
+          <div className="flex items-center gap-2.5 truncate">
+            <div className="p-1.5 bg-sky-500/10 border border-sky-500/20 rounded-lg text-sky-400 shrink-0">
+              <Cpu size={20} />
+            </div>
+            <span className="text-lg font-bold bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent truncate">
+              FiberGrid
+            </span>
+          </div>
           <button onClick={() => setSidebarOpen(false)} className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 lg:hidden">
             <X size={20} />
           </button>
@@ -71,7 +87,12 @@ export default function Dashboard() {
           </Link>
           <NavItem icon={<Network size={20} />} label="Rede & RB / OLT" />
           <NavItem icon={<MapPin size={20} />} label="Mapa & CTOs" />
-          <NavItem icon={<FileText size={20} />} label="Financeiro" />
+          
+          {/* LIGAÇÃO DIRETA PARA A PÁGINA FINANCEIRA */}
+          <Link href="/financeiro" className="block">
+            <NavItem icon={<FileText size={20} />} label="Financeiro" />
+          </Link>
+
           <NavItem icon={<Receipt size={20} />} label="Notas Fiscais" />
           <NavItem icon={<Headphones size={20} />} label="Atendimento / O.S." />
           <NavItem icon={<Box size={20} />} label="Estoque" />
@@ -101,16 +122,25 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full text-emerald-400 text-xs font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              VPN Nuvem Conectada
+              VPN FiberGrid Conectada
             </div>
             <button className="relative p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
               <Bell size={20} />
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500"></span>
             </button>
+            
             <div className="flex items-center gap-3 pl-3 border-l border-slate-800">
-              <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white text-sm">
-                AD
+              <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-full bg-sky-500 text-slate-950 flex items-center justify-center font-bold text-sm">
+                FG
               </div>
+              <button 
+                onClick={handleLogout}
+                title="Sair do Sistema"
+                className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 flex items-center gap-1.5 text-xs font-medium transition-colors"
+              >
+                <LogOut size={16} />
+                <span className="hidden sm:inline">Sair</span>
+              </button>
             </div>
           </div>
         </header>
@@ -119,19 +149,19 @@ export default function Dashboard() {
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 bg-slate-950 space-y-6">
           
           {/* Alerta de Caixa / Vencimentos */}
-          <div className="bg-gradient-to-r from-blue-900/40 to-indigo-900/40 border border-blue-500/30 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="bg-gradient-to-r from-sky-950/60 to-blue-950/60 border border-sky-500/30 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400 shrink-0">
+              <div className="p-2 bg-sky-500/20 rounded-lg text-sky-400 shrink-0">
                 <AlertTriangle size={24} />
               </div>
               <div>
-                <h4 className="font-semibold text-blue-200 text-sm lg:text-base">Resumo Operacional do Dia</h4>
+                <h4 className="font-semibold text-sky-200 text-sm lg:text-base">Resumo Operacional do Dia</h4>
                 <p className="text-xs text-slate-300">Existem 12 boletos vencidos hoje com envio programado via WhatsApp.</p>
               </div>
             </div>
-            <button className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors w-full sm:w-auto text-center shrink-0">
+            <Link href="/financeiro" className="bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-semibold px-4 py-2 rounded-lg transition-colors w-full sm:w-auto text-center shrink-0">
               Ver Inadimplentes
-            </button>
+            </Link>
           </div>
 
           {/* Cards de Saúde da RB */}
@@ -140,7 +170,7 @@ export default function Dashboard() {
               title="CPU Router (Core 1)" 
               value="14%" 
               subValue="Temp: 42°C" 
-              icon={<Server className="text-blue-400" size={20} />} 
+              icon={<Server className="text-sky-400" size={20} />} 
               status="Normal"
             />
             <MetricCard 
@@ -154,7 +184,7 @@ export default function Dashboard() {
               title="Clientes Online" 
               value="1.428" 
               subValue="12 Offline nas últimas 24h" 
-              icon={<Wifi className="text-indigo-400" size={20} />} 
+              icon={<Wifi className="text-sky-400" size={20} />} 
               status="Excelente"
             />
             <MetricCard 
@@ -177,8 +207,8 @@ export default function Dashboard() {
                   <p className="text-xs text-slate-400">Monitoramento em tempo real via API RouterOS</p>
                 </div>
                 <div className="flex items-center gap-3 text-xs">
-                  <span className="flex items-center gap-1.5 text-blue-400"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Download</span>
-                  <span className="flex items-center gap-1.5 text-indigo-400"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span> Upload</span>
+                  <span className="flex items-center gap-1.5 text-sky-400"><span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span> Download</span>
+                  <span className="flex items-center gap-1.5 text-blue-500"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Upload</span>
                 </div>
               </div>
               <div className="h-56 lg:h-64 w-full">
@@ -186,19 +216,19 @@ export default function Dashboard() {
                   <AreaChart data={trafficData}>
                     <defs>
                       <linearGradient id="colorDownload" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
                       </linearGradient>
                       <linearGradient id="colorUpload" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <XAxis dataKey="time" stroke="#64748b" textAnchor="end" tick={{fontSize: 12}} />
                     <YAxis stroke="#64748b" tick={{fontSize: 12}} />
                     <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }} />
-                    <Area type="monotone" dataKey="download" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorDownload)" />
-                    <Area type="monotone" dataKey="upload" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorUpload)" />
+                    <Area type="monotone" dataKey="download" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#colorDownload)" />
+                    <Area type="monotone" dataKey="upload" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorUpload)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -214,26 +244,28 @@ export default function Dashboard() {
                   <Link href="/clientes" className="block">
                     <button className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-between transition-colors">
                       <span>+ Novo Cliente PPPoE</span>
-                      <span className="text-xs text-blue-400 font-semibold">Atalho</span>
+                      <span className="text-xs text-sky-400 font-semibold">Atalho</span>
                     </button>
                   </Link>
                   <button className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-between transition-colors">
                     <span>Abrir Ordem de Serviço (O.S.)</span>
                     <span className="text-xs text-emerald-400 font-semibold">Suporte</span>
                   </button>
-                  <button className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-between transition-colors">
-                    <span>Liberar Desbloqueio de Confiança</span>
-                    <span className="text-xs text-amber-400 font-semibold">Financeiro</span>
-                  </button>
+                  <Link href="/financeiro" className="block">
+                    <button className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-between transition-colors">
+                      <span>Liberar Desbloqueio de Confiança</span>
+                      <span className="text-xs text-amber-400 font-semibold">Financeiro</span>
+                    </button>
+                  </Link>
                   <button className="w-full bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left px-4 py-3 rounded-lg text-sm font-medium flex items-center justify-between transition-colors">
                     <span>Disparar Cobrança WhatsApp</span>
-                    <span className="text-xs text-indigo-400 font-semibold">Automação</span>
+                    <span className="text-xs text-sky-400 font-semibold">Automação</span>
                   </button>
                 </div>
               </div>
 
               <div className="pt-4 mt-4 border-t border-slate-800 text-xs text-slate-500 flex justify-between">
-                <span>Versão do SaaS: v1.0.0</span>
+                <span>FiberGrid System: v1.0.0</span>
                 <span className="text-emerald-400 font-medium">Online</span>
               </div>
             </div>
@@ -249,7 +281,7 @@ export default function Dashboard() {
 
 function NavItem({ icon, label, active = false }: { icon: React.ReactNode, label: string, active?: boolean }) {
   return (
-    <div className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${active ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}>
+    <div className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${active ? 'bg-sky-500 text-slate-950 font-semibold' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}>
       <span className="shrink-0">{icon}</span>
       <span className="truncate">{label}</span>
     </div>
