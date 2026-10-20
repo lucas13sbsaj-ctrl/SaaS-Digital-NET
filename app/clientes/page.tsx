@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase';
 import { 
   Loader2, 
   Plus, 
-  UserCheck, 
   Cpu, 
   X, 
   RefreshCw, 
@@ -18,12 +17,12 @@ import {
   Trash2, 
   ArrowLeft,
   Search,
-  Wifi,
-  WifiOff,
   Activity,
   Calendar,
-  SlidersHorizontal,
-  Info
+  Edit3,
+  Compass,
+  Briefcase,
+  Wifi
 } from 'lucide-react';
 
 interface Client {
@@ -38,11 +37,18 @@ interface Client {
   cdr_name?: string;
   cto_box?: string;
   cto_port?: string;
+  cep?: string;
   street?: string;
   number?: string;
   neighborhood?: string;
   city?: string;
-  // Campos de Monitoramento MikroTik / FTTH
+  reference?: string;
+  person_type?: 'Física' | 'Jurídica';
+  cpf?: string;
+  rg?: string;
+  cnpj?: string;
+  father_name?: string;
+  mother_name?: string;
   ip_address?: string;
   mac_address?: string;
   router_model?: string;
@@ -63,20 +69,20 @@ export default function ClientsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Estados de Pesquisa e Filtros
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Estados do Modal de Diagnóstico / Quedas MikroTik
   const [selectedClientForDiag, setSelectedClientForDiag] = useState<Client | null>(null);
   const [isDiagModalOpen, setIsDiagModalOpen] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [dropDays, setDropDays] = useState(10); // Padrão 10 dias
+  const [dropDays, setDropDays] = useState(10);
   const [loadingDiag, setLoadingDiag] = useState(false);
   const [mikrotikData, setMikrotikData] = useState<{ dropsCount: number; history: string[] } | null>(null);
 
-  // Dados auxiliares
   const [availableCities, setAvailableCities] = useState<CityOption[]>([]);
+  
+  // Campos do Formulário
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [plan, setPlan] = useState('Plano 100Mb');
@@ -85,15 +91,26 @@ export default function ClientsPage() {
   const [ctoBox, setCtoBox] = useState('');
   const [ctoPort, setCtoPort] = useState('');
   const [pppoeLogin, setPppoeLogin] = useState('');
+  
+  const [personType, setPersonType] = useState<'Física' | 'Jurídica'>('Física');
+  const [cpf, setCpf] = useState('');
+  const [rg, setRg] = useState('');
+  const [cnpj, setCnpj] = useState('');
+  const [fatherName, setFatherName] = useState('');
+  const [motherName, setMotherName] = useState('');
+
+  const [cep, setCep] = useState('');
   const [street, setStreet] = useState('');
   const [number, setNumber] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const [city, setCity] = useState('Santo Antônio de Jesus');
+  const [reference, setReference] = useState('');
+  const [loadingCep, setLoadingCep] = useState(false);
+  const [cepError, setCepError] = useState<string | null>(null);
 
   const [newCityInput, setNewCityInput] = useState('');
   const [showAddCity, setShowAddCity] = useState(false);
 
-  // 1. Buscar Dados do Supabase
   const fetchData = async () => {
     setLoading(true);
     
@@ -107,13 +124,12 @@ export default function ClientsPage() {
       .select('*')
       .order('name', { ascending: true });
 
-    // Simulação de dados de IP e Conexão MikroTik caso estejam vazios na base
     const enrichedClients = (clientsData || []).map((c, index) => ({
       ...c,
       ip_address: c.ip_address || `10.50.${Math.floor(index / 254) + 1}.${(index % 254) + 10}`,
       mac_address: c.mac_address || `48:8F:38:${Math.floor(Math.random()*89+10)}:${Math.floor(Math.random()*89+10)}:${Math.floor(Math.random()*89+10)}`,
       router_model: c.router_model || 'ONU Huawei EG8141A5',
-      is_online: index % 4 !== 0, // Simulação online/offline
+      is_online: index % 4 !== 0,
       uptime: '4 dias 12h'
     }));
 
@@ -124,7 +140,6 @@ export default function ClientsPage() {
 
   useEffect(() => {
     fetchData();
-    // Definir datas padrão (últimos 10 dias)
     const today = new Date();
     const pastDate = new Date();
     pastDate.setDate(today.getDate() - 10);
@@ -132,7 +147,39 @@ export default function ClientsPage() {
     setStartDate(pastDate.toISOString().split('T')[0]);
   }, []);
 
-  // Abrir modal de diagnóstico e consultar MikroTik
+  const handleCepSearch = async () => {
+    const cleanCep = cep.replace(/\D/g, '');
+    if (cleanCep.length !== 8) {
+      setCepError('Digite um CEP válido com 8 dígitos.');
+      return;
+    }
+
+    setLoadingCep(true);
+    setCepError(null);
+
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cep/v1/${cleanCep}`);
+      const data = await res.json();
+
+      if (res.status !== 200 || !data.cep) {
+        setCepError('CEP não localizado.');
+      } else {
+        setStreet(data.street || '');
+        setNeighborhood(data.neighborhood || '');
+        if (data.city) {
+          setCity(data.city);
+        } else if (data.localidade) {
+          setCity(data.localidade);
+        }
+        setCepError(null);
+      }
+    } catch (err) {
+      setCepError('Erro ao consultar o serviço de CEP.');
+    } finally {
+      setLoadingCep(false);
+    }
+  };
+
   const handleOpenDiagnostics = (client: Client) => {
     setSelectedClientForDiag(client);
     setIsDiagModalOpen(true);
@@ -141,9 +188,8 @@ export default function ClientsPage() {
 
   const fetchMikrotikLogs = async (client: Client) => {
     setLoadingDiag(true);
-    // Simulação de chamada à API do MikroTik RouterOS para obter quedas no período
     setTimeout(() => {
-      const mockDrops = Math.floor(Math.random() * 4); // entre 0 e 3 quedas
+      const mockDrops = Math.floor(Math.random() * 4);
       setMikrotikData({
         dropsCount: mockDrops,
         history: mockDrops > 0 ? [
@@ -155,7 +201,6 @@ export default function ClientsPage() {
     }, 600);
   };
 
-  // Filtrar clientes por nome, login ou IP
   const filteredClients = clients.filter(c => {
     const term = searchTerm.toLowerCase();
     return (
@@ -165,7 +210,6 @@ export default function ClientsPage() {
     );
   });
 
-  // Adicionar Nova Cidade
   const handleSaveNewCity = async () => {
     if (!newCityInput.trim()) return;
     const { error } = await supabase.from('cities').insert([{ name: newCityInput.trim() }]);
@@ -179,74 +223,125 @@ export default function ClientsPage() {
     }
   };
 
-  // Gerar PPPoE
   const handleGeneratePPPoE = () => {
     if (!name.trim()) {
       alert('Por favor, digite o nome do cliente primeiro.');
       return;
     }
-    const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-    const randomSuffix = Math.floor(100 + Math.random() * 900);
-    setPppoeLogin(`${cleanName}_${randomSuffix}`);
+    const parts = name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/\s+/);
+    const firstName = parts[0] || 'cliente';
+    const secondPart = parts.length > 1 ? parts[1].substring(0, 3) : 'fib';
+    const cleanBase = `${firstName}${secondPart}`.replace(/[^a-z0-9]/g, '');
+    const randomSuffix = Math.floor(10 + Math.random() * 90);
+    setPppoeLogin(`${cleanBase}${randomSuffix}`);
   };
 
-  // Adicionar Cliente
-  const handleAddClient = async (e: React.FormEvent) => {
+  const handleOpenAddModal = () => {
+    setEditingClientId(null);
+    setName('');
+    setPhone('');
+    setPlan('Plano 100Mb');
+    setOltName('OLT Central - Huawei');
+    setCdrName('');
+    setCtoBox('');
+    setCtoPort('');
+    setPppoeLogin('');
+    setPersonType('Física');
+    setCpf('');
+    setRg('');
+    setCnpj('');
+    setFatherName('');
+    setMotherName('');
+    setCep('');
+    setStreet('');
+    setNumber('');
+    setNeighborhood('');
+    setCity('Santo Antônio de Jesus');
+    setReference('');
+    setErrorMsg(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (client: Client) => {
+    setEditingClientId(client.id);
+    setName(client.name || '');
+    setPhone(client.phone || '');
+    setPlan(client.plan || 'Plano 100Mb');
+    setOltName(client.olt_name || 'OLT Central - Huawei');
+    setCdrName(client.cdr_name || '');
+    setCtoBox(client.cto_box || '');
+    setCtoPort(client.cto_port || '');
+    setPppoeLogin(client.pppoe_login || '');
+    setPersonType(client.person_type || 'Física');
+    setCpf(client.cpf || '');
+    setRg(client.rg || '');
+    setCnpj(client.cnpj || '');
+    setFatherName(client.father_name || '');
+    setMotherName(client.mother_name || '');
+    setCep(client.cep || '');
+    setStreet(client.street || '');
+    setNumber(client.number || '');
+    setNeighborhood(client.neighborhood || '');
+    setCity(client.city || 'Santo Antônio de Jesus');
+    setReference(client.reference || '');
+    setErrorMsg(null);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setErrorMsg(null);
 
-    if (pppoeLogin.trim()) {
-      const { data: existingUser } = await supabase
+    const clientData = {
+      name,
+      phone,
+      plan,
+      status: 'Ativo' as const,
+      olt_name: oltName,
+      cdr_name: cdrName,
+      cto_box: ctoBox,
+      cto_port: ctoPort,
+      pppoe_login: pppoeLogin.trim() || null,
+      person_type: personType,
+      cpf,
+      rg,
+      cnpj: personType === 'Jurídica' ? cnpj : null,
+      father_name: fatherName,
+      mother_name: motherName,
+      cep,
+      street,
+      number,
+      neighborhood,
+      city,
+      reference
+    };
+
+    if (editingClientId) {
+      const { error } = await supabase
         .from('clients')
-        .select('id')
-        .eq('pppoe_login', pppoeLogin.trim())
-        .single();
+        .update(clientData)
+        .eq('id', editingClientId);
 
-      if (existingUser) {
-        setErrorMsg(`O login PPPoE "${pppoeLogin}" já está em uso.`);
-        setSubmitting(false);
-        return;
+      if (error) {
+        setErrorMsg(`Erro ao atualizar cliente: ${error.message}`);
+      } else {
+        setIsModalOpen(false);
+        fetchData();
       }
-    }
-
-    const { error } = await supabase.from('clients').insert([
-      {
-        name,
-        phone,
-        plan,
-        status: 'Ativo',
-        olt_name: oltName,
-        cdr_name: cdrName,
-        cto_box: ctoBox,
-        cto_port: ctoPort,
-        pppoe_login: pppoeLogin.trim() || null,
-        street,
-        number,
-        neighborhood,
-        city
-      }
-    ]);
-
-    if (error) {
-      setErrorMsg(`Erro ao cadastrar cliente: ${error.message}`);
     } else {
-      setName('');
-      setPhone('');
-      setCdrName('');
-      setCtoBox('');
-      setCtoPort('');
-      setPppoeLogin('');
-      setStreet('');
-      setNumber('');
-      setNeighborhood('');
-      setIsModalOpen(false);
-      fetchData();
+      const { error } = await supabase.from('clients').insert([clientData]);
+
+      if (error) {
+        setErrorMsg(`Erro ao cadastrar cliente: ${error.message}`);
+      } else {
+        setIsModalOpen(false);
+        fetchData();
+      }
     }
     setSubmitting(false);
   };
 
-  // Excluir Cliente
   const handleDeleteClient = async (id: string, clientName: string) => {
     const confirmDelete = window.confirm(`Tem certeza de que deseja excluir o cliente "${clientName}"?`);
     if (!confirmDelete) return;
@@ -272,7 +367,7 @@ export default function ClientsPage() {
 
       <div className="max-w-7xl mx-auto space-y-6">
         
-        {/* Cabeçalho */}
+        {/* CABEÇALHO COM BOTÃO DE GERIR PLANOS */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
           <div className="flex items-center gap-4">
             <Link 
@@ -295,15 +390,24 @@ export default function ClientsPage() {
             </div>
           </div>
 
-          <button 
-            onClick={() => { setErrorMsg(null); setIsModalOpen(true); }}
-            className="bg-sky-500 hover:bg-sky-400 text-slate-950 px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors shrink-0"
-          >
-            <Plus size={18} /> Adicionar Cliente
-          </button>
+          {/* BOTÕES DO TOPO */}
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/planos"
+              className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-sky-400 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors"
+            >
+              <Wifi size={16} /> Gerir Planos
+            </Link>
+
+            <button 
+              onClick={handleOpenAddModal}
+              className="bg-sky-500 hover:bg-sky-400 text-slate-950 px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors shrink-0"
+            >
+              <Plus size={18} /> Adicionar Cliente
+            </button>
+          </div>
         </div>
 
-        {/* Barra de Pesquisa Avançada */}
         <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
           <div className="relative w-full sm:w-96">
             <Search size={18} className="absolute left-3.5 top-3 text-slate-500" />
@@ -325,7 +429,6 @@ export default function ClientsPage() {
           </div>
         </div>
 
-        {/* Tabela de Clientes */}
         {loading ? (
           <div className="flex justify-center p-12"><Loader2 className="animate-spin text-sky-400" size={32} /></div>
         ) : (
@@ -350,7 +453,12 @@ export default function ClientsPage() {
                       <td className="p-4 flex items-center gap-3">
                         <span title={client.is_online ? 'Online na MikroTik' : 'Offline'} className={`w-3 h-3 rounded-full shrink-0 ${client.is_online ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
                         <div>
-                          <div className="font-medium text-slate-200">{client.name}</div>
+                          <div className="font-medium text-slate-200 flex items-center gap-2">
+                            {client.name}
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono">
+                              {client.person_type === 'Jurídica' ? 'PJ' : 'PF'}
+                            </span>
+                          </div>
                           <div className="text-xs text-slate-500">{client.phone || 'Sem contacto'}</div>
                         </div>
                       </td>
@@ -375,6 +483,15 @@ export default function ClientsPage() {
                         >
                           <Activity size={14} /> Telemetria
                         </button>
+                        
+                        <button
+                          onClick={() => handleOpenEditModal(client)}
+                          title="Editar Informações do Cliente"
+                          className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 text-xs font-medium transition-colors inline-flex items-center gap-1.5"
+                        >
+                          <Edit3 size={14} /> Editar
+                        </button>
+
                         <button
                           onClick={() => handleDeleteClient(client.id, client.name)}
                           disabled={deletingId === client.id}
@@ -394,11 +511,9 @@ export default function ClientsPage() {
 
       </div>
 
-      {/* MODAL DE DIAGNÓSTICO E QUEDAS MIKROTIK */}
       {isDiagModalOpen && selectedClientForDiag && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl relative">
-            
             <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
               <div className="flex items-center gap-2.5 text-sky-400">
                 <Activity size={22} />
@@ -413,8 +528,6 @@ export default function ClientsPage() {
             </div>
 
             <div className="p-6 space-y-6">
-              
-              {/* Filtro de Período (Padrão 10 dias) */}
               <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-300 uppercase flex items-center gap-1.5">
@@ -453,7 +566,6 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              {/* Resultado da Consulta MikroTik */}
               {loadingDiag ? (
                 <div className="flex justify-center py-12"><Loader2 className="animate-spin text-sky-400" size={32} /></div>
               ) : mikrotikData && (
@@ -483,7 +595,6 @@ export default function ClientsPage() {
                   </div>
                 </div>
               )}
-
             </div>
 
             <div className="p-4 border-t border-slate-800 bg-slate-900/50 flex justify-end">
@@ -494,46 +605,78 @@ export default function ClientsPage() {
                 Fechar
               </button>
             </div>
-
           </div>
         </div>
       )}
 
-      {/* MODAL POP-UP DE NOVO CLIENTE */}
+      {/* MODAL POP-UP DE CADASTRO / EDIÇÃO DE CLIENTE */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl relative my-8">
-            
             <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
               <div className="flex items-center gap-2 text-sky-400 font-semibold">
                 <User size={20} />
-                <span className="text-slate-100 text-lg font-bold">Cadastrar Novo Cliente FTTH</span>
+                <span className="text-slate-100 text-lg font-bold">
+                  {editingClientId ? 'Editar Informações do Cliente' : 'Cadastrar Novo Cliente FTTH'}
+                </span>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800">
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleAddClient} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
-              
+            <form onSubmit={handleSaveClient} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
               {errorMsg && (
                 <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-3 rounded-xl">
                   {errorMsg}
                 </div>
               )}
 
-              {/* Dados Pessoais */}
+              {/* TIPO DE PESSOA (FÍSICA / JURÍDICA) */}
+              <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl">
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                  Tipo de Pessoa
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPersonType('Física')}
+                    className={`py-2.5 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-2 ${
+                      personType === 'Física' 
+                        ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.3)]' 
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                    }`}
+                  >
+                    <User size={15} /> Pessoa Física (PF)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPersonType('Jurídica')}
+                    className={`py-2.5 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-2 ${
+                      personType === 'Jurídica' 
+                        ? 'bg-sky-500 text-slate-950 border-sky-400 shadow-[0_0_15px_rgba(56,189,248,0.3)]' 
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                    }`}
+                  >
+                    <Briefcase size={15} /> Pessoa Jurídica (PJ)
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <h3 className="text-xs font-semibold text-sky-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <User size={14} /> Dados Pessoais
+                  <User size={14} /> {personType === 'Jurídica' ? 'Dados da Empresa & Responsável' : 'Dados Pessoais'}
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Nome Completo *</label>
+                    <label className="block text-xs text-slate-400 mb-1">
+                      {personType === 'Jurídica' ? 'Razão Social / Nome da Empresa *' : 'Nome Completo *'}
+                    </label>
                     <input 
                       type="text" 
                       required 
-                      placeholder="Ex: João da Silva"
+                      placeholder={personType === 'Jurídica' ? 'Ex: Tech Soluções LTDA' : 'Ex: João da Silva'}
                       value={name} 
                       onChange={(e) => setName(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl text-sm outline-none focus:border-sky-500 text-slate-200"
@@ -550,13 +693,81 @@ export default function ClientsPage() {
                     />
                   </div>
                 </div>
+
+                {personType === 'Jurídica' && (
+                  <div className="mb-3">
+                    <label className="block text-xs text-slate-400 mb-1">CNPJ da Empresa *</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="00.000.000/0001-00"
+                      value={cnpj} 
+                      onChange={(e) => setCnpj(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl text-sm outline-none focus:border-sky-500 text-slate-200 font-mono"
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">
+                      {personType === 'Jurídica' ? 'CPF do Responsável *' : 'CPF *'}
+                    </label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="000.000.000-00"
+                      value={cpf} 
+                      onChange={(e) => setCpf(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl text-sm outline-none focus:border-sky-500 text-slate-200 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">
+                      {personType === 'Jurídica' ? 'RG do Responsável' : 'RG'}
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="0000000-0"
+                      value={rg} 
+                      onChange={(e) => setRg(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl text-sm outline-none focus:border-sky-500 text-slate-200 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">
+                      {personType === 'Jurídica' ? 'Nome do Pai (Responsável)' : 'Nome do Pai Completo'}
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="Nome completo do pai"
+                      value={fatherName} 
+                      onChange={(e) => setFatherName(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl text-sm outline-none focus:border-sky-500 text-slate-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">
+                      {personType === 'Jurídica' ? 'Nome da Mãe (Responsável)' : 'Nome da Mãe Completo'}
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="Nome completo da mãe"
+                      value={motherName} 
+                      onChange={(e) => setMotherName(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl text-sm outline-none focus:border-sky-500 text-slate-200"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Endereço */}
               <div className="border-t border-slate-800/80 pt-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-semibold text-sky-400 uppercase tracking-wider flex items-center gap-2">
-                    <MapPin size={14} /> Endereço de Instalação
+                    <MapPin size={14} /> Endereço de Instalação & CEP
                   </h3>
                   <button 
                     type="button"
@@ -586,13 +797,39 @@ export default function ClientsPage() {
                   </div>
                 )}
 
+                <div className="mb-4">
+                  <label className="block text-xs text-slate-400 mb-1">CEP (Busca Automática)</label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 flex items-center gap-2 bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl relative">
+                      <input 
+                        type="text"
+                        maxLength={9}
+                        placeholder="Ex: 44570-000"
+                        value={cep}
+                        onChange={(e) => setCep(e.target.value)}
+                        onBlur={handleCepSearch}
+                        className="w-full bg-transparent text-sm outline-none text-slate-200 font-mono"
+                      />
+                      {loadingCep && <Loader2 size={16} className="animate-spin text-sky-400 shrink-0" />}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCepSearch}
+                      className="bg-slate-800 hover:bg-slate-700 text-sky-400 px-4 rounded-xl text-xs font-semibold border border-slate-700 transition-colors shrink-0 flex items-center gap-1"
+                    >
+                      Buscar CEP
+                    </button>
+                  </div>
+                  {cepError && <span className="text-[11px] text-rose-400 mt-1 block">{cepError}</span>}
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs text-slate-400 mb-1">Cidade</label>
                     <input 
                       type="text" 
                       list="cities-list"
-                      placeholder="Ex: Santo Antônio de Jesus"
+                      placeholder="Santo Antônio de Jesus"
                       value={city} 
                       onChange={(e) => setCity(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl text-sm outline-none focus:border-sky-500 text-slate-200 font-medium"
@@ -619,19 +856,33 @@ export default function ClientsPage() {
                     />
                   </div>
                 </div>
-                <div className="mt-3 w-1/3">
-                  <label className="block text-xs text-slate-400 mb-1">Número</label>
-                  <input 
-                    type="text" 
-                    placeholder="123"
-                    value={number} 
-                    onChange={(e) => setNumber(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl text-sm outline-none focus:border-sky-500 text-slate-200"
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Número</label>
+                    <input 
+                      type="text" 
+                      placeholder="123"
+                      value={number} 
+                      onChange={(e) => setNumber(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl text-sm outline-none focus:border-sky-500 text-slate-200"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs text-slate-400 mb-1 flex items-center gap-1">
+                      <Compass size={12} className="text-sky-400" /> Ponto de Referência
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: Próximo à padaria, casa amarela"
+                      value={reference} 
+                      onChange={(e) => setReference(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl text-sm outline-none focus:border-sky-500 text-slate-200"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* FTTH */}
               <div className="border-t border-slate-800/80 pt-4">
                 <h3 className="text-xs font-semibold text-sky-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                   <Network size={14} /> Dados de Conexão FTTH
@@ -698,7 +949,6 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              {/* PPPoE */}
               <div className="border-t border-slate-800/80 pt-4">
                 <h3 className="text-xs font-semibold text-sky-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                   <Lock size={14} /> Credenciais PPPoE
@@ -708,7 +958,7 @@ export default function ClientsPage() {
                   <div className="flex gap-2">
                     <input 
                       type="text" 
-                      placeholder="ex: joaosilva_102"
+                      placeholder="ex: joaosilva12"
                       value={pppoeLogin} 
                       onChange={(e) => setPppoeLogin(e.target.value)}
                       className="flex-1 bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl text-sm outline-none focus:border-sky-500 text-slate-200 font-mono"
@@ -716,29 +966,28 @@ export default function ClientsPage() {
                     <button 
                       type="button" 
                       onClick={handleGeneratePPPoE}
-                      className="bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs px-3 py-2 rounded-xl font-medium flex items-center gap-1.5 border border-slate-700 transition-colors"
+                      className="bg-slate-800 hover:bg-slate-700 text-sky-400 px-4 py-2 rounded-xl text-xs font-semibold border border-slate-700 transition-colors"
                     >
-                      <RefreshCw size={14} /> Gerar Automático
+                      Gerar Automático
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="border-t border-slate-800 pt-6 flex justify-end gap-3">
+              <div className="border-t border-slate-800 pt-4 flex justify-end gap-3">
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-800 text-slate-400 hover:bg-slate-800 text-sm transition-colors"
+                  className="px-5 py-2.5 rounded-xl border border-slate-800 text-slate-400 hover:bg-slate-800 text-sm font-medium"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit" 
                   disabled={submitting}
-                  className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors disabled:opacity-50"
+                  className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 disabled:opacity-50"
                 >
-                  {submitting ? <Loader2 className="animate-spin" size={16} /> : 'Salvar Cliente'}
+                  {submitting ? <Loader2 className="animate-spin" size={16} /> : (editingClientId ? 'Atualizar Cliente' : 'Salvar Cliente')}
                 </button>
               </div>
 
