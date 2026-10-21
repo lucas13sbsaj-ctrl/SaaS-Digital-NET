@@ -152,7 +152,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-8 pt-6 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 font-mono">
-          <span>SECURE ROUTEROS v7</span>
+          <span>VPN SECURITY</span>
           <span className="text-emerald-400 flex items-center gap-1 font-semibold">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> ONLINE
           </span>

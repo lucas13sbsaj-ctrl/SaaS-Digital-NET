@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #09090b; /* Altere aqui o tom do fundo (ex: #09090b para um cinza bem escuro, ou #000000 para preto) */
   --foreground: #171717;
 }
 
@@ -14,13 +14,34 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #09090b; /* Mantém o mesmo tom escuro personalizado no modo dark */
     --foreground: #ededed;
   }
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
+  color: #f1f5f9;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  /* Mostra apenas o modal de visualização da nota fiscal na hora de imprimir */
+  .fixed.inset-0.z-50, .fixed.inset-0.z-50 * {
+    visibility: visible;
+  }
+  .fixed.inset-0.z-50 {
+    position: absolute;
+    left: 0;
+    top: 0;
+    background: white !important;
+    color: black !important;
+  }
+  /* Oculta os botões de ação do rodapé do modal no papel */
+  button {
+    display: none !important;
+  }
 }
